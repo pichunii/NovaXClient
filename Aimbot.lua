@@ -300,7 +300,7 @@ local Window = Rayfield:CreateWindow({
         Note = "Discord: discord.gg/nhism",
         FileName = "NovaXV5Key",
         SaveKey = true,
-        Key = {"NHISM-PREMIUM-999", "NHISM-FREE-111"}
+        Key = {"AIMBOT", "NOVAX"}
     }
 })
 

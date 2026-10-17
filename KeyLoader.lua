@@ -56,7 +56,7 @@ local function ExecuteGameScript(isPremium)
     local ScriptURLs = {
         Main = "https://raw.githubusercontent.com/yourname/yourrepo/main/main.lua",
         Kaitun = "https://raw.githubusercontent.com/yourname/yourrepo/main/kaitun.lua",
-        Aimbot = "https://raw.githubusercontent.com/yourname/yourrepo/main/aimbot.lua",
+        Aimbot = "https://raw.githubusercontent.com/pichunii/NovaXClient/refs/heads/main/Aimbot.lua",
         Fixlag = "https://raw.githubusercontent.com/yourname/yourrepo/main/fixlag.lua"
     }
     

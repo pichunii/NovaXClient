@@ -57,7 +57,7 @@ local function ExecuteGameScript(isPremium)
         Main = "https://raw.githubusercontent.com/yourname/yourrepo/main/main.lua",
         Kaitun = "https://raw.githubusercontent.com/yourname/yourrepo/main/kaitun.lua",
         Aimbot = "https://raw.githubusercontent.com/pichunii/NovaXClient/refs/heads/main/Aimbot.lua",
-        Fixlag = "https://raw.githubusercontent.com/pichunii/NovaXClient/refs/heads/main/Aimbot.lua"
+        Fixlag = "https://raw.githubusercontent.com/pichunii/NovaXClient/refs/heads/main/Fixlag.luau"
     }
     
     local TargetURL = ScriptURLs[Config.Script_Mode] or ScriptURLs["Main"]

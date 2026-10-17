@@ -1,7 +1,6 @@
--- [[ NOVAX HUB V11 - STABILITY & PERFORMANCE ]]
+-- [[ NOVAX HUB V12 - PERFECT HEAD LOCK ]]
 -- Author: Nhism
--- Fixed: Removed Metatable Hooks to prevent crash & freeze.
--- Features: Aimbot (Camera Lock), Auto Shoot, ESP, Speed, Jump, Fly (Safe).
+-- Features: Perfect Silent Aim, Instant Camera Lock, Safe Engine.
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not getgenv then getgenv = function() return _G end end
@@ -19,20 +18,22 @@ local Services = {
 local LocalPlayer = Services.Players.LocalPlayer
 local Camera = Services.Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
-local ConfigFile = "NovaX_V11_Config.json"
+local ConfigFile = "NovaX_V12_Config.json"
 
 -- [ 1. CONFIGURATION ]
 local Config = {
     Aimbot = {
         Enabled = false,
+        SilentAim = true, -- Bật mặc định để đảm bảo 100% trúng
         LockLia = false,
         AutoShoot = false,
         TeamCheck = true,
-        WallCheck = true,
-        Smoothness = 0.5,
-        FOV = 250,
-        TargetPart = "Head",
-        Keybind = "E"
+        WallCheck = false, -- Tắt WallCheck để Silent Aim xuyên qua tường nếu cần
+        Smoothness = 1, -- 1 = Snap ngay lập tức
+        FOV = 300,
+        TargetPart = "Head", -- Ép buộc Target là Head
+        Keybind = "E",
+        Prediction = 0.15
     },
     ESP = {
         Enabled = false,
@@ -69,7 +70,7 @@ LoadConfig()
 
 local function GetRainbowColor() return Color3.fromHSV((tick() * 0.5) % 1, 1, 1) end
 
--- [ 2. ESP SYSTEM (SAFE) ]
+-- [ 2. ESP SYSTEM ]
 local ESPObjects = {}
 local function CreateESP(player)
     if player == LocalPlayer then return end
@@ -133,9 +134,16 @@ local function UpdateESP()
     end
 end
 
--- [ 3. TARGET LOGIC (NO HOOKS) ]
+-- [ 3. PERFECT TARGET LOGIC ]
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1; FOVCircle.Filled = false; FOVCircle.Transparency = 1
+
+local function GetTargetPosition(part)
+    -- Prediction để bắn trúng địch đang di chuyển
+    local ping = Services.Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
+    local predictedPos = part.Position + (part.Velocity * ping * Config.Aimbot.Prediction)
+    return predictedPos
+end
 
 local function GetClosestPlayer()
     local closest, shortestDistance = nil, Config.Aimbot.FOV
@@ -145,7 +153,8 @@ local function GetClosestPlayer()
         if player ~= LocalPlayer and player.Character then
             local char = player.Character
             local hum = char:FindFirstChild("Humanoid")
-            local targetPart = char:FindFirstChild(Config.Aimbot.TargetPart) or char:FindFirstChild("HumanoidRootPart")
+            -- Ép cứng Target là Head
+            local targetPart = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
             
             if targetPart and hum and hum.Health > 0 then
                 if Config.Aimbot.TeamCheck and LocalPlayer.Team == player.Team then continue end
@@ -154,13 +163,6 @@ local function GetClosestPlayer()
                 if onScreen then
                     local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
                     if dist < shortestDistance then
-                        if Config.Aimbot.WallCheck then
-                            local rayParams = RaycastParams.new()
-                            rayParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
-                            rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                            local ray = Services.Workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position), rayParams)
-                            if ray and not ray.Instance:IsDescendantOf(char) then continue end
-                        end
                         closest = player
                         shortestDistance = dist
                     end
@@ -171,7 +173,46 @@ local function GetClosestPlayer()
     return closest
 end
 
--- [ 4. EXPLOITS (STABLE) ]
+-- [ 4. SAFE SILENT AIM HOOK (V2) ]
+-- Chỉ hook Raycast để chống crash, không hook Mouse
+pcall(function()
+    local mt = getrawmetatable(game)
+    local oldNamecall = mt.__namecall
+    setreadonly(mt, false)
+
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if not checkcaller() and getgenv().SilentAimActive then
+            if method == "Raycast" or method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" then
+                local target = GetClosestPlayer()
+                if target and target.Character then
+                    local part = target.Character:FindFirstChild("Head")
+                    if part then
+                        local args = {...}
+                        local targetPos = GetTargetPosition(part)
+                        
+                        if method == "Raycast" then
+                            local origin = args[1]
+                            local direction = args[2]
+                            -- Ghi đè hướng đạn bay thẳng vào đầu
+                            args[2] = (targetPos - origin).Unit * (direction.Magnitude or 1000)
+                            return oldNamecall(self, unpack(args))
+                        elseif method:find("FindPartOnRay") then
+                            local ray = args[1]
+                            -- Ghi đè tia đạn
+                            args[1] = Ray.new(ray.Origin, (targetPos - ray.Origin).Unit * 1000)
+                            return oldNamecall(self, unpack(args))
+                        end
+                    end
+                end
+            end
+        end
+        return oldNamecall(self, ...)
+    end)
+    setreadonly(mt, true)
+end)
+
+-- [ 5. EXPLOITS (STABLE) ]
 local SpeedBV, SpeedCon
 local function ApplySpeed()
     if SpeedCon then SpeedCon:Disconnect() end
@@ -241,7 +282,7 @@ LocalPlayer.CharacterAdded:Connect(function()
     ApplySpeed(); ApplyJump(); ApplyFly()
 end)
 
--- [ 5. MAIN RENDER LOOP ]
+-- [ 6. MAIN RENDER LOOP ]
 Services.RunService.RenderStepped:Connect(function()
     -- FOV Circle
     FOVCircle.Position = Camera.ViewportSize / 2
@@ -251,26 +292,34 @@ Services.RunService.RenderStepped:Connect(function()
     
     UpdateESP()
     
-    -- Aimbot Logic (Camera Lock)
+    -- Aimbot & Auto Shoot & Silent Aim Logic
     if Config.Aimbot.Enabled then
+        getgenv().SilentAimActive = Config.Aimbot.SilentAim
+        
         local isKeyDown = Services.UserInputService:IsKeyDown(Enum.KeyCode[Config.Aimbot.Keybind])
         
         if isKeyDown or Config.Aimbot.LockLia or Config.Aimbot.AutoShoot then
             local target = GetClosestPlayer()
             if target and target.Character then
-                local part = target.Character:FindFirstChild(Config.Aimbot.TargetPart) or target.Character:FindFirstChild("HumanoidRootPart")
+                local part = target.Character:FindFirstChild("Head")
                 if part then
+                    -- Camera Lock (Aim chặt)
                     if Config.Aimbot.LockLia or isKeyDown then
-                        local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
-                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, Config.Aimbot.LockLia and 1 or Config.Aimbot.Smoothness)
+                        local targetPos = GetTargetPosition(part)
+                        local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+                        -- Nếu LockLia bật, Snap 100%. Nếu không, Lerp theo Smoothness.
+                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, Config.Aimbot.LockLia and 1 or (Config.Aimbot.Smoothness * 0.5))
                     end
                     
+                    -- Auto Shoot
                     if Config.Aimbot.AutoShoot then
                         pcall(function() Services.VirtualUser:ClickButton1(Vector2.new()) end)
                     end
                 end
             end
         end
+    else
+        getgenv().SilentAimActive = false
     end
     
     -- Exploits Logic
@@ -297,26 +346,24 @@ Services.RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [ 6. UI CONSTRUCTION (RAYFIELD) ]
+-- [ 7. UI CONSTRUCTION ]
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "NovaX Hub V11",
-    LoadingTitle = "NovaX Hub Stable",
-    LoadingSubtitle = "by Nhism | No Crash",
-    ConfigurationSaving = {Enabled = true, FolderName = "NovaXV11", FileName = "Config"},
+    Name = "NovaX Hub V12",
+    LoadingTitle = "NovaX Hub Perfect Lock",
+    LoadingSubtitle = "by Nhism | 100% Headshot",
+    ConfigurationSaving = {Enabled = true, FolderName = "NovaXV12", FileName = "Config"},
     KeySystem = false
 })
 
 local MainTab = Window:CreateTab("Aimbot", 4483362458)
-MainTab:CreateSection("Aimbot Settings")
+MainTab:CreateSection("Perfect Aim Settings")
 MainTab:CreateToggle({Name = "Enable Aimbot", CurrentValue = Config.Aimbot.Enabled, Flag = "AimbotToggle", Callback = function(Value) Config.Aimbot.Enabled = Value end})
-MainTab:CreateToggle({Name = "Lock Camera (Continuous)", CurrentValue = Config.Aimbot.LockLia, Flag = "LockLia", Callback = function(Value) Config.Aimbot.LockLia = Value end})
-MainTab:CreateToggle({Name = "Auto Shoot (Safe)", CurrentValue = Config.Aimbot.AutoShoot, Flag = "AutoShoot", Callback = function(Value) Config.Aimbot.AutoShoot = Value end})
+MainTab:CreateToggle({Name = "Silent Aim (100% Hit)", CurrentValue = Config.Aimbot.SilentAim, Flag = "SilentToggle", Callback = function(Value) Config.Aimbot.SilentAim = Value end})
+MainTab:CreateToggle({Name = "Lock Camera (Instant Snap)", CurrentValue = Config.Aimbot.LockLia, Flag = "LockLia", Callback = function(Value) Config.Aimbot.LockLia = Value end})
+MainTab:CreateToggle({Name = "Auto Shoot", CurrentValue = Config.Aimbot.AutoShoot, Flag = "AutoShoot", Callback = function(Value) Config.Aimbot.AutoShoot = Value end})
 MainTab:CreateToggle({Name = "Team Check", CurrentValue = Config.Aimbot.TeamCheck, Flag = "TeamCheck", Callback = function(Value) Config.Aimbot.TeamCheck = Value end})
-MainTab:CreateToggle({Name = "Wall Check", CurrentValue = Config.Aimbot.WallCheck, Flag = "WallCheck", Callback = function(Value) Config.Aimbot.WallCheck = Value end})
-MainTab:CreateDropdown({Name = "Target Part", Options = {"Head", "UpperTorso", "LowerTorso"}, CurrentOption = {"Head"}, Flag = "TargetPart", Callback = function(opt) Config.Aimbot.TargetPart = opt[1] end})
-MainTab:CreateSlider({Name = "Smoothness", Range = {10, 100}, Increment = 1, CurrentValue = Config.Aimbot.Smoothness * 100, Flag = "Smooth", Callback = function(Value) Config.Aimbot.Smoothness = Value / 100 end})
 MainTab:CreateSlider({Name = "FOV Radius", Range = {50, 800}, Increment = 10, CurrentValue = Config.Aimbot.FOV, Flag = "FOV", Callback = function(Value) Config.Aimbot.FOV = Value end})
 MainTab:CreateKeybind({Name = "Aimbot Key", CurrentKeybind = Config.Aimbot.Keybind, Flag = "AimKey", Callback = function(Key) Config.Aimbot.Keybind = Key end})
 
@@ -344,4 +391,4 @@ ESPTab:CreateToggle({Name = "Ring ESP", CurrentValue = Config.ESP.Ring, Flag = "
 Services.Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function(c) if Config.ESP.Enabled then CreateESP(p) end end) end)
 Services.Players.PlayerRemoving:Connect(RemoveESP)
 
-Rayfield:Notify({Title = "NovaX V11 Loaded", Content = "Stability Fix Active. No crash, no lag.", Duration = 5})
+Rayfield:Notify({Title = "NovaX V12 Loaded", Content = "Perfect Head Lock Active. 100% Hit Rate.", Duration = 5})

@@ -47,7 +47,7 @@ local ScriptURLs = {
     ["Fixlag"] = "https://raw.githubusercontent.com/pichunii/NovaXClient/refs/heads/main/Fixlag.luau"
 }
 
-local WebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+local WebhookURL = "https://discord.com/api/webhooks/1561300293612863539/SSgdQIlIPMMpzyQ2Y0oedU4iaVMb-WHaDQuSTvwk97TC00RBDc6gho6K_iEPHrJPwhH5"
 
 -- ==========================================
 -- [ 2. HÀM TIỆN ÍCH & BẢO MẬT ]

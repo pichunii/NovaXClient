@@ -62,7 +62,7 @@ local ScriptURLs = {
 }
 
 -- Webhook URL (Thay thế bằng URL của bạn)
-local WebhookURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL"
+local WebhookURL = "https://discord.com/api/webhooks/1561300293612863539/SSgdQIlIPMMpzyQ2Y0oedU4iaVMb-WHaDQuSTvwk97TC00RBDc6gho6K_iEPHrJPwhH5"
 
 -- ==========================================
 -- [ 3. HÀM TIỆN ÍCH & BẢO MẬT ]
